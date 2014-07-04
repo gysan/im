@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"github.com/golang/glog"
 	"io"
 	"net"
@@ -11,11 +10,6 @@ import (
 	"code.google.com/p/goprotobuf/proto"
 	"github.com/gysan/im/common"
 	"github.com/gysan/im/tunnel"
-)
-
-var (
-	// cmd parse failed
-	ErrProtocol = errors.New("cmd format error")
 )
 
 // StartTCP Start tcp listen.
@@ -78,27 +72,19 @@ func tcpListen(bind string) {
 			continue
 		}
 		go handle(conn)
-
 		glog.V(1).Info("accept finished")
 	}
 	glog.V(1).Info("TCP listen end.")
 }
 
 func handle(conn net.Conn) {
-	buf := make([]byte, 12)
+	head := make([]byte, 12)
 	addr := conn.RemoteAddr().String()
 	glog.V(1).Infof("<%s> handleTcpConn routine start", addr)
-	//	rd := newBufioReader(rc, conn)
-	//	glog.V(1).Info(rd.Read(buf))
-	//
-	//	putBufioReader(rc, rd)
+	conn.Read(head)
+	glog.Infof("Head: %v", head)
 
-	conn.Read(buf)
-	glog.Infof("Read: %v", buf)
-	glog.Infof("Tag: %v", buf[0:4])
-	glog.Infof("Type: %v", buf[4:8])
-	glog.Infof("Length: %v", buf[8:12])
-	HeartbeatInitHandle(conn, buf)
+	HeartbeatInitHandle(conn, head)
 
 	// close the connection
 	if err := conn.Close(); err != nil {
@@ -111,14 +97,13 @@ func handle(conn net.Conn) {
 func HeartbeatInitHandle(conn net.Conn, args []byte) {
 	addr := conn.RemoteAddr().String()
 	glog.Infof("addr: %v", addr)
-	// key, heartbeat
 
-	buf := make([]byte, int32(binary.BigEndian.Uint32(args[8:12])))
-	conn.Read(buf)
-	glog.V(1).Infof("buf: %v", buf)
+	body := make([]byte, int32(binary.BigEndian.Uint32(args[8:12])))
+	conn.Read(body)
+	glog.V(1).Infof("Data: %v", body)
 
 	heartbeatInit := &common.HeartbeatInit{}
-	err := proto.Unmarshal(buf, heartbeatInit)
+	err := proto.Unmarshal(body, heartbeatInit)
 	glog.Infof("Heartbeat init: %s", heartbeatInit.String())
 	if err != nil {
 		glog.Errorf("Unmarshal error: %s", err)
@@ -157,7 +142,7 @@ func HeartbeatInitHandle(conn net.Conn, args []byte) {
 	glog.V(1).Infof("connection elem: %v", connElem.Value)
 
 	// blocking wait client heartbeat
-	reply := make([]byte, 12)
+	head := make([]byte, 12)
 	begin := time.Now().UnixNano()
 	end := begin + int64(time.Second)
 	glog.V(1).Infof("Begin: %v, End: %v", begin, end)
@@ -171,7 +156,7 @@ func HeartbeatInitHandle(conn net.Conn, args []byte) {
 			begin = end
 		}
 		glog.V(1).Infof("Begin: %v, End: %v", begin, end)
-		if _, err = conn.Read(reply); err != nil {
+		if _, err = conn.Read(head); err != nil {
 			if err != io.EOF {
 				glog.Warningf("<%s> user_key:\"%s\" conn.Read() failed, read heartbeat timedout error(%v)", addr, key, err)
 			} else {
@@ -181,17 +166,14 @@ func HeartbeatInitHandle(conn net.Conn, args []byte) {
 			break
 		}
 
-		glog.Infof("Read: %v", reply)
-		glog.Infof("Tag: %v", reply[0:4])
-		glog.Infof("Type: %v", reply[4:8])
-		glog.Infof("Length: %v", reply[8:12])
+		glog.Infof("Head: %v", head)
 
-		buf := make([]byte, int32(binary.BigEndian.Uint32(reply[8:12])))
-		conn.Read(buf)
-		glog.V(1).Infof("buf: %v", buf)
+		body := make([]byte, int32(binary.BigEndian.Uint32(head[8:12])))
+		conn.Read(body)
+		glog.V(1).Infof("Data: %v", body)
 
-		glog.Infof("Case %d", int32(binary.BigEndian.Uint32(reply[4:8])))
-		switch int32(binary.BigEndian.Uint32(reply[4:8])){
+		glog.Infof("Case %d", int32(binary.BigEndian.Uint32(head[4:8])))
+		switch int32(binary.BigEndian.Uint32(head[4:8])){
 		case int32(common.MessageCommand_HEARTBEAT_INIT):
 			hb := new(tunnel.HeartbeatInitTunnelLet)
 			td := tunnel.TunnelData{Type: int32(common.MessageCommand_HEARTBEAT_INIT_RESPONSE)}
@@ -201,7 +183,7 @@ func HeartbeatInitHandle(conn net.Conn, args []byte) {
 			td := tunnel.TunnelData{Type: int32(common.MessageCommand_HEARTBEAT_RESPONSE)}
 			hb.MessageReceived(conn, td)
 		case int32(common.MessageCommand_MESSAGE):
-			MessageHandle(conn, buf)
+			MessageHandle(conn, body)
 		}
 		end = time.Now().UnixNano()
 	}
@@ -213,15 +195,15 @@ func HeartbeatInitHandle(conn net.Conn, args []byte) {
 }
 
 
-func MessageHandle(conn net.Conn, args []byte) {
+func MessageHandle(conn net.Conn, body []byte) {
 	glog.V(1).Info("MessageHandle")
 	addr := conn.RemoteAddr().String()
 	glog.Infof("addr: %v", addr)
 	// key, heartbeat
 
 	message := &common.Message{}
-	glog.V(1).Infof("args: %s", args)
-	err := proto.Unmarshal(args, message)
+	glog.V(1).Infof("body: %s", body)
+	err := proto.Unmarshal(body, message)
 	if err != nil {
 		glog.Errorf("Unmarshal error: %s", err)
 	}
