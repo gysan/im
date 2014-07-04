@@ -44,7 +44,6 @@ func (c *Connection) HandleWrite(key string) {
 		for {
 			msg := <-c.Buf
 			n, err = c.Conn.Write([]byte(fmt.Sprintf("$%d\r\n%s\r\n", len(msg), string(msg))))
-			// update stat
 			if err != nil {
 				glog.Errorf("user_key: \"%s\" conn.Write() error(%v)", key, err)
 				glog.V(1).Infof("user_key: \"%s\" HandleWrite goroutine stop", key)

@@ -18,11 +18,10 @@ func StartHttp() {
 
 	pushServeMux := http.NewServeMux()
 	pushServeMux.HandleFunc("/push", Push)
-	for _, bind := range Conf.WebsocketBind {
+	for _, bind := range Conf.HTTPBind {
 		glog.Infof("start http listen addr:\"%s\"", bind)
 		go httpListen(pushServeMux, bind)
 	}
-
 
 	glog.Info("Http end.")
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"github.com/Terry-Mao/gopush-cluster/hlist"
-	"github.com/Terry-Mao/gopush-cluster/id"
 	"github.com/golang/glog"
 	"sync"
 	"github.com/gysan/im/common"
@@ -23,8 +22,6 @@ type SeqChannel struct {
 	mutex *sync.Mutex
 	// client conn double linked-list
 	conn *hlist.Hlist
-	// TODO Remove time id or lazy New
-	timeID *id.TimeID
 }
 
 // New a user seq stored message channel.
@@ -32,10 +29,9 @@ func NewSeqChannel() *SeqChannel {
 	ch := &SeqChannel{
 		mutex:  &sync.Mutex{},
 		conn:   hlist.New(),
-		timeID: id.NewTimeID(),
 	}
 	// save memory
-	glog.V(1).Infof("NewSeqChannel: %v, %v, %v", ch.mutex, ch.conn, ch.timeID)
+	glog.V(1).Infof("NewSeqChannel: %v, %v", ch.mutex, ch.conn)
 	return ch
 }
 

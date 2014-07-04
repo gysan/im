@@ -19,7 +19,7 @@ func init() {
 type Config struct {
 	// base
 	TCPBind       []string `goconf:"base:tcp.bind:,"`
-	WebsocketBind []string `goconf:"base:websocket.bind:,"`
+	HTTPBind      []string `goconf:"base:http.bind:,"`
 	// channel
 	SndbufSize              int           `goconf:"channel:sndbuf.size:memory"`
 	RcvbufSize              int           `goconf:"channel:rcvbuf.size:memory"`
@@ -35,8 +35,8 @@ type Config struct {
 func InitConfig() error {
 	Conf = &Config{
 		// base
-		WebsocketBind: []string{"localhost:6968"},
-		TCPBind:       []string{"localhost:6969"},
+		HTTPBind: 		[]string{"localhost:6968"},
+		TCPBind:    	[]string{"localhost:6969"},
 		// channel
 		SndbufSize:              2048,
 		RcvbufSize:              256,
